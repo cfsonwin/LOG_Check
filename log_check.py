@@ -12,12 +12,14 @@ class read_log:
         y = 0
         # fileaddress = input("please input log_file address")
         (path, filename) = os.path.split(fileaddress)
+        self.txt_addr = fileaddress
         self.txt_name = filename[0:-4]
         self.filepath = path
         self.xlsname = "Log_Check_" + self.txt_name + ".xls"
         self.xlspath = os.path.join(self.filepath, self.xlsname)
+        print("初始化" + self.txt_name + "中")
         if not os.path.exists(self.xlspath):
-            file = open(fileaddress, 'r')
+            file = open(self.txt_addr, 'r')
             xls = xlwt.Workbook()
             sheet = xls.add_sheet('sheet1', cell_overwrite_ok=True)
             while True:
@@ -60,6 +62,7 @@ class read_log:
         return dict_data
 
     def check_distract(self):
+        print("分心检查... ... ")
         distract_dict = self.read_data(8)
         region_dict = self.read_data(9)
         distract_appear = []
@@ -76,11 +79,12 @@ class read_log:
                         b += 1
                         a += 1
                         continue
-                    elif (key - key_last) > 500:
+                    elif (key - key_last) > 100:
                         distract_appear.append(key)
                         # distract_key.append(key)
                         key_last = key
                         a += 1
+                        continue
                 if key - key_last < 100:
                     key_last = key
                     distract_key.append(key)
@@ -96,11 +100,13 @@ class read_log:
                 if key < item and (item - key) < 4000:
                     key_del.append(key)
         for key in key_del:
-            del distract_dict[key]
-            del region_dict[key]
+            if key in distract_dict.keys():
+                del distract_dict[key]
+                del region_dict[key]
         for key in distract_appear:
-            del distract_dict[key]
-            del region_dict[key]
+            if key in distract_dict.keys():
+                del distract_dict[key]
+                del region_dict[key]
         c = 0
         d = 0
         start_time = []
@@ -115,23 +121,60 @@ class read_log:
                 if c == 1:
                     end_time.append(key_last)
                 c = 0
-        key_record = []
+        stt = []
         if len(start_time) == len(end_time):
             for i in range(0, len(start_time)):
                 if end_time[i] - start_time[i] >= 2000:
-                    key_record.append(start_time[i])
-        
+                    stt.append(start_time[i])
+        elif len(start_time) - len(end_time) == 1:
+            del start_time[-1]
+            for i in range(0, len(start_time)):
+                if end_time[i] - start_time[i] >= 2000:
+                    stt.append(start_time[i])
+        key_record = []
+        if len(stt) != 0:
+
+            xls = xlwt.Workbook()
+            for stts in stt:
+                file = open(self.txt_addr, 'r')
+                sheet = xls.add_sheet(str(stts), cell_overwrite_ok=True)
+                for key, value in region_dict.items():
+                    if abs(key - stts) <= 3000:
+                        key_record.append(key)
+                x = 0
+                y = 0
+                while True:
+                    lines = file.readline()
+                    if not lines:
+                        break
+                    line = []
+                    for i in lines.split(','):
+                        item = i.strip().encode('utf8').decode('utf8')
+                        line.append(float(item))
+                    if line[0] in key_record:
+                        for i in lines.split(','):
+                            item = i.strip().encode('utf8').decode('utf8')
+                            sheet.write(x, y, item)
+                            y += 1
+                        x += 1
+                    y = 0
+                key_record.clear()
+                file.close()
+            os.chdir(self.filepath)
+            xls.save(self.txt_name + "_distration_check.xls")
         # print(distract_appear)
         # print(distract_key)
 
 
-
 if __name__ == '__main__':
-    folderaddress = input("请输入文件夹路径: ")
-    # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
-    filelist = os.listdir(folderaddress)
-    for file in filelist:
-        if os.path.splitext(file)[1] == ".txt":
-            fileaddress = os.path.join(folderaddress, file)
-            test = read_log(fileaddress)
-            test_dict = test.check_distract()
+    # folderaddress = input("请输入文件夹路径: ")
+    # # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
+    # filelist = os.listdir(folderaddress)
+    # for file in filelist:
+    #     if os.path.splitext(file)[1] == ".txt":
+    #         fileaddress = os.path.join(folderaddress, file)
+    #         test = read_log(fileaddress)
+    #         test_dict = test.check_distract()
+
+    test = read_log(r'C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_14_34_2_dms.txt')
+    test_dict = test.check_distract()
