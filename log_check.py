@@ -17,6 +17,7 @@ class read_log:
         self.filepath = path
         self.xlsname = "Log_Check_" + self.txt_name + ".xls"
         self.xlspath = os.path.join(self.filepath, self.xlsname)
+        print('*' * 20)
         print("初始化" + self.txt_name + "中")
         if not os.path.exists(self.xlspath):
             file = open(self.txt_addr, 'r')
@@ -70,7 +71,7 @@ class read_log:
         a = 0
         b = 0
         for key, value in distract_dict.items():
-            if int(value) == 2:
+            if int(value) >= 2:
                 if a == 0:
                     if b == 0:
                         distract_appear.append(key)
@@ -150,8 +151,11 @@ class read_log:
                     line = []
                     for i in lines.split(','):
                         item = i.strip().encode('utf8').decode('utf8')
-                        line.append(float(item))
-                    if line[0] in key_record:
+                        line.append(item)
+                    # line[0].find('\x00')
+                    if '\x00' in line[0]:
+                        break
+                    if float(line[0]) in key_record:
                         for i in lines.split(','):
                             item = i.strip().encode('utf8').decode('utf8')
                             sheet.write(x, y, item)
@@ -325,27 +329,33 @@ class read_log:
             print('文件' + self.txt_name + '无人脸丢失异常')
 
 if __name__ == '__main__':
-    folderaddress = input("请输入文件夹路径: ")
-    # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
-    filelist = os.listdir(folderaddress)
-    test_item = input("请输入测试项目：\n 1.分心 2.疲惫 3.人脸丢失 4.全部（不包括3）")
-    for file in filelist:
-        if os.path.splitext(file)[1] == ".txt":
-            fileaddress = os.path.join(folderaddress, file)
-            test = read_log(fileaddress)
-            if test_item == 1:
-                test.check_fatigue()
-            if test_item == 2:
-                test.check_fatigue()
-            if test_item == 3:
-                test.check_noface()
-            if test_item ==4:
-                test.check_fatigue()
-                test.check_fatigue()
-                # test.check_noface()
+    while True:
+        folderaddress = input("请输入文件夹路径: ")
+        if not os.path.exists(folderaddress):
+            print("请输入正确路径")
+            continue
+        # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
+        filelist = os.listdir(folderaddress)
+        test_item = input("请输入测试项目：\n 1.分心 2.疲惫 3.人脸丢失 4.全部（不包括3）\n")
+        for file in filelist:
+            if os.path.splitext(file)[1] == ".txt":
+                fileaddress = os.path.join(folderaddress, file)
+                test = read_log(fileaddress)
+                if int(test_item) == 1:
+                    test.check_distract()
+                if int(test_item) == 2:
+                    test.check_fatigue()
+                if int(test_item) == 3:
+                    test.check_noface()
+                if int(test_item) == 4:
+                    test.check_distract()
+                    test.check_fatigue()
+                    # test.check_noface()
+            print("\n")
+        print("检查结束。\n")
 
 
 
 
-    # test = read_log(r'C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_14_34_2_dms.txt')
+    # test = read_log(r'G:\Hirain\WR\W16\2021_5_8-dms\2021_5_8_10_15_31_dms.txt')
     # test_dict = test.check_distract()
