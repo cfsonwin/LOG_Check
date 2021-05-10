@@ -133,7 +133,7 @@ class read_log:
                     stt.append(start_time[i])
         key_record = []
         if len(stt) != 0:
-
+            print('正在记录分心异常时间点前后三秒数据')
             xls = xlwt.Workbook()
             for stts in stt:
                 file = open(self.txt_addr, 'r')
@@ -162,19 +162,190 @@ class read_log:
                 file.close()
             os.chdir(self.filepath)
             xls.save(self.txt_name + "_distration_check.xls")
-        # print(distract_appear)
-        # print(distract_key)
+        else:
+            print('文件' + self.txt_name + '无分心异常')
 
+    def check_fatigue(self):
+        print("疲劳检查... ... ")
+        fitigue_dict = self.read_data(159)
+        event_dict = self.read_data(1)
+        fitigue_appear = []
+        fitigue_key = []
+        a = 0
+        b = 0
+        for key, value in fitigue_dict.items():
+            if int(value) >= 2:
+                if a == 0:
+                    if b == 0:
+                        fitigue_appear.append(key)
+                        key_last = key
+                        b += 1
+                        a += 1
+                        continue
+                    elif (key - key_last) > 100:
+                        fitigue_appear.append(key)
+                        # distract_key.append(key)
+                        key_last = key
+                        a += 1
+                        continue
+                if key - key_last < 100:
+                    key_last = key
+                    fitigue_key.append(key)
+                    continue
+            else:
+                a = 0
+        for key in fitigue_key:
+            del fitigue_dict[key]
+            del event_dict[key]
+        key_del = []
+        for key, value in fitigue_dict.items():
+            for item in fitigue_appear:
+                if key < item and (item - key) < 5000:
+                    key_del.append(key)
+        for key in key_del:
+            if key in fitigue_dict.keys():
+                del fitigue_dict[key]
+                del event_dict[key]
+        for key in fitigue_appear:
+            if key in fitigue_dict.keys():
+                del fitigue_dict[key]
+                del event_dict[key]
+        yawn_list = []
+        eyeclose_list = []
+        xls = xlwt.Workbook()
+        sheet_yawn = xls.add_sheet('yawn_list', cell_overwrite_ok=True)
+        sheet_eyeclose = xls.add_sheet('eyeclose_list', cell_overwrite_ok=True)
+        for key, value in event_dict.items():
+            if int(value) == 5:
+                yawn_list.append(key)
+            elif int(value) == 6:
+                eyeclose_list.append(key)
+        if len(yawn_list) != 0 and len(eyeclose_list) != 0:
+            print('正在记录疲劳异常时间点')
+            xls = xlwt.Workbook()
+            sheet_yawn = xls.add_sheet('yawn_list', cell_overwrite_ok=True)
+            sheet_eyeclose = xls.add_sheet('eyeclose_list', cell_overwrite_ok=True)
+            c = 0
+            d = 0
+            for key, value in event_dict.items():
+                    if int(value) == 5:
+                        sheet_yawn.write(c, 0, key)
+                        c += 1
+                    elif int(value) == 6:
+                        sheet_eyeclose.write(c, 0, key)
+                        d += 1
+            os.chdir(self.filepath)
+            xls.save(self.txt_name + "_fitigue_check.xls")
+        else:
+            print('文件' + self.txt_name + '无疲劳异常')
+
+    def check_noface(self):
+        print("人脸检查... ... ")
+        face_result_dict = self.read_data(240)
+        dace_detect_dict = self.read_data(42)
+        face_lost_appear = []
+        face_lost_key = []
+        a = 0
+        b = 0
+        for key, value in face_result_dict.items():
+            if int(value) == 2:
+                if a == 0:
+                    if b == 0:
+                        face_lost_appear.append(key)
+                        # distract_key.append(key)
+                        key_last = key
+                        b += 1
+                        a += 1
+                        continue
+                    elif (key - key_last) > 100:
+                        face_lost_appear.append(key)
+                        # distract_key.append(key)
+                        key_last = key
+                        a += 1
+                        continue
+                if key - key_last < 100:
+                    key_last = key
+                    face_lost_key.append(key)
+                    continue
+            else:
+                a = 0
+        for key in face_lost_key:
+            del face_result_dict[key]
+            del dace_detect_dict[key]
+        key_del = []
+        for key, value in face_result_dict.items():
+            for item in face_lost_appear:
+                if key < item and (item - key) < 5000:
+                    key_del.append(key)
+        for key in key_del:
+            if key in face_result_dict.keys():
+                del face_result_dict[key]
+                del dace_detect_dict[key]
+        for key in face_lost_appear:
+            if key in face_result_dict.keys():
+                del face_result_dict[key]
+                del dace_detect_dict[key]
+        c = 0
+        d = 0
+        start_time = []
+        end_time = []
+        for key, value in dace_detect_dict.items():
+            if int(value) == 0:
+                if c == 0:
+                    start_time.append(key)
+                    c += 1
+                key_last = key
+            else:
+                if c == 1:
+                    end_time.append(key_last)
+                c = 0
+        stt = []
+        if len(start_time) == len(end_time):
+            for i in range(0, len(start_time)):
+                if end_time[i] - start_time[i] >= 3000:
+                    stt.append(start_time[i])
+        elif len(start_time) - len(end_time) == 1:
+            del start_time[-1]
+            for i in range(0, len(start_time)):
+                if end_time[i] - start_time[i] >= 3000:
+                    stt.append(start_time[i])
+        key_record = []
+
+        if len(stt) != 0:
+            print('正在写入人脸丢失异常时间点')
+            xls = xlwt.Workbook()
+            sheet = xls.add_sheet('noface_check', cell_overwrite_ok=True)
+            c = 0
+            for item in stt:
+                sheet.write(c, 0, item)
+                c += 1
+            os.chdir(self.filepath)
+            xls.save(self.txt_name + "_noface_check.xls")
+        else:
+            print('文件' + self.txt_name + '无人脸丢失异常')
 
 if __name__ == '__main__':
-    # folderaddress = input("请输入文件夹路径: ")
-    # # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
-    # filelist = os.listdir(folderaddress)
-    # for file in filelist:
-    #     if os.path.splitext(file)[1] == ".txt":
-    #         fileaddress = os.path.join(folderaddress, file)
-    #         test = read_log(fileaddress)
-    #         test_dict = test.check_distract()
+    folderaddress = input("请输入文件夹路径: ")
+    # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
+    filelist = os.listdir(folderaddress)
+    test_item = input("请输入测试项目：\n 1.分心 2.疲惫 3.人脸丢失 4.全部（不包括3）")
+    for file in filelist:
+        if os.path.splitext(file)[1] == ".txt":
+            fileaddress = os.path.join(folderaddress, file)
+            test = read_log(fileaddress)
+            if test_item == 1:
+                test.check_fatigue()
+            if test_item == 2:
+                test.check_fatigue()
+            if test_item == 3:
+                test.check_noface()
+            if test_item ==4:
+                test.check_fatigue()
+                test.check_fatigue()
+                # test.check_noface()
 
-    test = read_log(r'C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_14_34_2_dms.txt')
-    test_dict = test.check_distract()
+
+
+
+    # test = read_log(r'C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_14_34_2_dms.txt')
+    # test_dict = test.check_distract()
