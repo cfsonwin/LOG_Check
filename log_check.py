@@ -1,9 +1,12 @@
 # coding=utf-8
 
 import os
-
+import sys
 import xlrd
 import xlwt
+from inspect import getsourcefile
+from os.path import abspath
+# from numpy.core import unicode
 
 
 class read_log:
@@ -30,6 +33,8 @@ class read_log:
                 for i in lines.split(','):
                     item = i.strip().encode('utf8').decode('utf8')
                     sheet.write(x, y, item)
+                    # if x == 0 and y == 0:
+                    #     self.start_time = float(item)
                     y += 1
                 x += 1
                 y = 0
@@ -43,6 +48,7 @@ class read_log:
         workbook = xlrd.open_workbook(self.xlspath)
         sheet_new = workbook.sheet_by_name('sheet1')
         new_time = []
+        self.col_count = sheet_new.ncols
         for item in sheet_new.col_values(0):
             item = item.strip().encode('raw_unicode_escape')
             new_time.append(item)
@@ -60,6 +66,7 @@ class read_log:
             test_item_new.append(item)
         if len(test_item_new) == len(time2):
             dict_data = dict(zip(time2, test_item_new))
+        self.start_time = float(time2[0])
         return dict_data
 
     def check_distract(self):
@@ -123,15 +130,18 @@ class read_log:
                     end_time.append(key_last)
                 c = 0
         stt = []
+        edt = []
         if len(start_time) == len(end_time):
             for i in range(0, len(start_time)):
                 if end_time[i] - start_time[i] >= 2000:
                     stt.append(start_time[i])
+                    edt.append(end_time[i])
         elif len(start_time) - len(end_time) == 1:
             del start_time[-1]
             for i in range(0, len(start_time)):
                 if end_time[i] - start_time[i] >= 2000:
                     stt.append(start_time[i])
+                    edt.append(end_time[i])
         key_record = []
         if len(stt) != 0:
             print('正在记录分心异常时间点前后三秒数据')
@@ -164,10 +174,14 @@ class read_log:
                     y = 0
                 key_record.clear()
                 file.close()
-            os.chdir(self.filepath)
+            report_distraction_filepath = self.filepath + "\\distrction_log_extract"
+            if not os.path.exists(report_distraction_filepath):
+                os.mkdir(report_distraction_filepath)
+            os.chdir(report_distraction_filepath)
             xls.save(self.txt_name + "_distration_check.xls")
         else:
             print('文件' + self.txt_name + '无分心异常')
+        return stt, edt
 
     def check_fatigue(self):
         print("疲劳检查... ... ")
@@ -232,16 +246,20 @@ class read_log:
             c = 0
             d = 0
             for key, value in event_dict.items():
-                    if int(value) == 5:
-                        sheet_yawn.write(c, 0, key)
-                        c += 1
-                    elif int(value) == 6:
-                        sheet_eyeclose.write(c, 0, key)
-                        d += 1
-            os.chdir(self.filepath)
+                if int(value) == 5:
+                    sheet_yawn.write(c, 0, key)
+                    c += 1
+                elif int(value) == 6:
+                    sheet_eyeclose.write(c, 0, key)
+                    d += 1
+            report_fatigue_filepath = self.filepath + "\\fatigue_log_extract"
+            if not os.path.exists(report_fatigue_filepath):
+                os.mkdir(report_fatigue_filepath)
+            os.chdir(report_fatigue_filepath)
             xls.save(self.txt_name + "_fitigue_check.xls")
         else:
             print('文件' + self.txt_name + '无疲劳异常')
+        return yawn_list, eyeclose_list
 
     def check_noface(self):
         print("人脸检查... ... ")
@@ -304,15 +322,19 @@ class read_log:
                     end_time.append(key_last)
                 c = 0
         stt = []
+        edt = []
         if len(start_time) == len(end_time):
             for i in range(0, len(start_time)):
                 if end_time[i] - start_time[i] >= 3000:
                     stt.append(start_time[i])
+                    edt.append(end_time[i])
         elif len(start_time) - len(end_time) == 1:
             del start_time[-1]
             for i in range(0, len(start_time)):
                 if end_time[i] - start_time[i] >= 3000:
                     stt.append(start_time[i])
+                    edt.append(end_time[i])
+
         key_record = []
 
         if len(stt) != 0:
@@ -323,39 +345,205 @@ class read_log:
             for item in stt:
                 sheet.write(c, 0, item)
                 c += 1
-            os.chdir(self.filepath)
+            report_noface_filepath = self.filepath + "\\noface_log_extract"
+            if not os.path.exists(report_noface_filepath):
+                os.mkdir(report_noface_filepath)
+            os.chdir(report_noface_filepath)
             xls.save(self.txt_name + "_noface_check.xls")
         else:
             print('文件' + self.txt_name + '无人脸丢失异常')
+        return stt, edt
+
 
 if __name__ == '__main__':
-    while True:
-        folderaddress = input("请输入文件夹路径: ")
-        if not os.path.exists(folderaddress):
-            print("请输入正确路径")
-            continue
-        # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
-        filelist = os.listdir(folderaddress)
-        test_item = input("请输入测试项目：\n 1.分心 2.疲惫 3.人脸丢失 4.全部（不包括3）\n")
-        for file in filelist:
-            if os.path.splitext(file)[1] == ".txt":
-                fileaddress = os.path.join(folderaddress, file)
-                test = read_log(fileaddress)
-                if int(test_item) == 1:
-                    test.check_distract()
-                if int(test_item) == 2:
-                    test.check_fatigue()
-                if int(test_item) == 3:
-                    test.check_noface()
-                if int(test_item) == 4:
-                    test.check_distract()
-                    test.check_fatigue()
-                    # test.check_noface()
-            print("\n")
-        print("检查结束。\n")
 
+    # folderaddress = input("请输入文件夹路径: ")
+    # if not os.path.exists(folderaddress):
+    #     print("请输入正确路径")
+    #     continue
 
+    folderaddress, filepath = os.path.split(abspath(getsourcefile(lambda:0)))
+    # while True:
+    #     print(folderaddress)
+    # C:\Users\Admin\Desktop\2021_5_7-dms\2021_5_7_13_51_4_dms.txt
+    filelist = os.listdir(folderaddress)
+    # test_item = input("请输入测试项目：\n 1.分心 2.疲惫 3.人脸丢失 4.全部（不包括3）\n")
+    xls = xlwt.Workbook()
+    sheet1 = xls.add_sheet('distract_check', cell_overwrite_ok=True)
+    sheet2 = xls.add_sheet('fitigue_check', cell_overwrite_ok=True)
+    sheet3 = xls.add_sheet('noface_check', cell_overwrite_ok=True)
+    x1 = 0
+    x2 = 0
+    x3 = 0
+    sheet1.write(x1, 0, '编号')
+    sheet1.write(x1, 1, '绝对时间')
+    sheet1.write(x1, 2, '起始时间戳')
+    sheet1.write(x1, 3, '结束时间戳')
+    sheet1.write(x1, 4, '所属数据')
 
+    sheet2.write(x2, 0, '编号')
+    sheet2.write(x2, 1, '绝对时间')
+    sheet2.write(x2, 2, '时间点')
+    sheet2.write(x2, 3, '所属数据')
+
+    sheet3.write(x3, 0, '编号')
+    sheet3.write(x3, 1, '绝对时间')
+    sheet3.write(x3, 2, '起始时间戳')
+    sheet3.write(x3, 3, '结束时间戳')
+    sheet3.write(x3, 4, '所属数据')
+
+    for file in filelist:
+        if os.path.splitext(file)[1] == ".txt":
+            fileaddress = os.path.join(folderaddress, file)
+            test = read_log(fileaddress)
+            test.read_data(0)
+            start_time = test.start_time
+            cols = test.col_count
+            # if int(test_item) == 1:
+            str1 = test.txt_name
+            position = []
+            for i in range(0, len(str1)):
+                if str1[i] == '_':
+                    position.append(i)
+            year = str1[0: int(position[0])]
+            monate = str1[(int(position[0]) + 1): int(position[1])]
+            day = str1[(int(position[1]) + 1): int(position[2])]
+            year_mon_day = str1[0: int(position[2]) + 1]
+            hour = int(str1[int(position[2]) + 1: int(position[3])])
+            minute = int(str1[int(position[3]) + 1: int(position[4])])
+            second = int(str1[int(position[4]) + 1: int(position[5])])
+            if cols >= 240:
+                stt_noface, edt_noface = test.check_noface()
+                for i in range(0, len(stt_noface)):
+                    x3 += 1
+                    time_diff_noface = (stt_noface[i] - start_time) // 1000
+                    ms = (stt_noface[i] - start_time) % 1000
+                    if time_diff_noface < 3600:
+                        hr_noface = 0
+                        ses_noface = time_diff_noface % 60
+                        mnt_noface = time_diff_noface // 60
+                    else:
+                        hr_noface = time_diff_noface // 3600
+                        a_noface = time_diff_noface % 3600
+                        ses_noface = a_noface % 60
+                        mnt_noface = a_noface // 60
+                    second_noface = second + ses_noface
+                    if second_noface >= 60:
+                        second_noface -= 60
+                        minute_noface = minute + mnt_noface + 1
+                    else:
+                        minute_noface = minute + mnt_noface
+                    if minute_noface >= 60:
+                        minute_noface -= 60
+                        hour_noface = hour + hr_noface + 1
+                    else:
+                        hour_noface = hour + hr_noface
+                    video_time_noface = year_mon_day + str(hour_noface) + '_' + str(minute_noface) + '_' \
+                                        + str(second_noface) + '_' + str(ms)
+                    sheet3.write(x3, 0, x1)
+                    sheet3.write(x3, 1, video_time_noface)
+                    sheet3.write(x3, 2, stt_noface[i])
+                    sheet3.write(x3, 3, edt_noface[i])
+                    sheet3.write(x3, 4, test.txt_name)
+
+            stt, edt = test.check_distract()
+            for i in range(0, len(stt)):
+                x1 += 1
+                time_diff_dis = int((stt[i] - start_time) // 1000)
+                ms_dis = int((stt[i] - start_time) % 1000)
+                if time_diff_dis < 3600:
+                    hr_dis = 0
+                    ses_dis = int(time_diff_dis % 60)
+                    mnt_dis = int(time_diff_dis // 60)
+                else:
+                    hr_dis = int(time_diff_dis // 3600)
+                    a_dis = int(time_diff_dis % 3600)
+                    ses_dis = int(a_dis % 60)
+                    mnt_dis = int(a_dis // 60)
+                second_dis = second + ses_dis
+                if second_dis >= 60:
+                    second_dis -= 60
+                    minute_dis = minute + mnt_dis + 1
+                else:
+                    minute_dis = minute + mnt_dis
+                if minute_dis >= 60:
+                    minute_dis -= 60
+                    hour_dis = hour + hr_dis + 1
+                else:
+                    hour_dis = hour + hr_dis
+                video_time_dis = year_mon_day + str(hour_dis) + '_' + str(minute_dis) + '_' \
+                                    + str(second_dis) + '_' + str(ms_dis)
+                sheet1.write(x1, 0, x1)
+                sheet1.write(x1, 1, video_time_dis)
+                sheet1.write(x1, 2, stt[i])
+                sheet1.write(x1, 3, edt[i])
+                sheet1.write(x1, 4, test.txt_name)
+            yawn_list, eyeclose_list = test.check_fatigue()
+            for i in range(0, len(yawn_list)):
+                x2 += 1
+                time_diff_yawn = (yawn_list[i] - start_time) // 1000
+                ms_yawn = (yawn_list[i] - start_time) % 1000
+                if time_diff_yawn < 3600:
+                    hr_yawn = 0
+                    ses_yawn = time_diff_yawn % 60
+                    mnt_yawn = time_diff_yawn // 60
+                else:
+                    hr_yawn = time_diff_yawn // 3600
+                    a_yawn = time_diff_yawn % 3600
+                    ses_yawn = a_yawn % 60
+                    mnt_yawn = a_yawn // 60
+                second_yawn = second + ses_yawn
+                if second_yawn >= 60:
+                    second_yawn -= 60
+                    minute_yawn = minute + mnt_yawn + 1
+                else:
+                    minute_yawn = minute + mnt_yawn
+                if minute_yawn >= 60:
+                    minute_yawn -= 60
+                    hour_yawn = hour + hr_yawn + 1
+                else:
+                    hour_yawn = hour + hr_yawn
+                video_time_yawn = year_mon_day + str(hour_yawn) + '_' + str(minute_yawn) + '_' \
+                                 + str(second_yawn) + '_' + str(ms_yawn)
+                sheet2.write(x2, 0, x1)
+                sheet2.write(x2, 1, video_time_yawn)
+                sheet2.write(x2, 2, yawn_list[i])
+                sheet2.write(x2, 3, test.txt_name)
+            for i in range(0, len(eyeclose_list)):
+                x2 += 1
+                time_diff_eyeclose = (eyeclose_list[i] - start_time) // 1000
+                ms_eyeclose = (eyeclose_list[i] - start_time) % 1000
+                if time_diff_eyeclose < 3600:
+                    hr_eyeclose = 0
+                    ses_eyeclose = time_diff_eyeclose % 60
+                    mnt_eyeclose = time_diff_eyeclose // 60
+                else:
+                    hr_eyeclose = time_diff_eyeclose // 3600
+                    a_eyeclose = time_diff_eyeclose % 3600
+                    ses_eyeclose = a_eyeclose % 60
+                    mnt_eyeclose = a_eyeclose // 60
+                second_eyeclose = second + ses_eyeclose
+                if second_eyeclose >= 60:
+                    second_eyeclose -= 60
+                    minute_eyeclose = minute + mnt_eyeclose + 1
+                else:
+                    minute_eyeclose = minute + mnt_eyeclose
+                if minute_eyeclose >= 60:
+                    minute_eyeclose -= 60
+                    hour_eyeclose = hour + hr_eyeclose + 1
+                else:
+                    hour_eyeclose = hour + hr_eyeclose
+                video_time_eyeclose = year_mon_day + str(hour_eyeclose) + '_' + str(minute_eyeclose) + '_' \
+                                  + str(second_eyeclose) + '_' + str(ms_eyeclose)
+                sheet2.write(x2, 0, x1)
+                sheet2.write(x2, 1, video_time_eyeclose)
+                sheet2.write(x2, 2, eyeclose_list[i])
+                sheet2.write(x2, 3, test.txt_name)
+        print("\n")
+    print("正在生成报告")
+    os.chdir(folderaddress)
+    xls.save("log_check_report_all.xls")
+    print("检查结束。\n")
 
     # test = read_log(r'G:\Hirain\WR\W16\2021_5_8-dms\2021_5_8_10_15_31_dms.txt')
     # test_dict = test.check_distract()
